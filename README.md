@@ -1,4 +1,4 @@
-# S3 Utils
+# s3-utils
 [![Crates.io](https://img.shields.io/crates/v/s3-utils.svg)](https://crates.io/crates/s3-utils) [![Build Status](https://img.shields.io/travis/whitfin/s3-utils.svg)](https://travis-ci.org/whitfin/s3-utils)
 
 Utilities and tools based around Amazon S3 to provide convenience APIs in a CLI.
