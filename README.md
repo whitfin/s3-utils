@@ -9,9 +9,9 @@ All S3 interaction is controlled by [rusoto_s3](https://crates.io/crates/rusoto_
 
 * [Installation](#installation)
 * [Commands](#commands)
- + [concat](#concat)
- + [rename](#rename)
- + [report](#report)
+  + [concat](#concat)
+  + [rename](#rename)
+  + [report](#report)
 
 ## Installation
 
