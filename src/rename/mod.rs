@@ -18,7 +18,7 @@ pub fn cmd<'a, 'b>() -> App<'a, 'b> {
                 .index(2)
                 .required(true),
             Arg::with_name("target")
-                .help("A target pattern to use to concatenate files into")
+                .help("A target pattern to use to rename files into")
                 .index(3)
                 .required(true),
         ])
