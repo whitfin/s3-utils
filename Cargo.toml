@@ -14,7 +14,7 @@ edition = "2018"
 travis-ci = { repository = "whitfin/s3-utils" }
 
 [dependencies]
-clap = "2.33.0"
+clap = "2.33"
 log = { version = "0.4", features = ["std"] }
 quick-xml = "0.16"
 regex = "1.3"
