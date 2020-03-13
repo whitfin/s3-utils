@@ -25,7 +25,7 @@ pub fn cmd<'a, 'b>() -> App<'a, 'b> {
 }
 
 /// Executes this subcommand and returns a `UtilResult` to indicate success.
-pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
+pub async fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
     // parse all global arguments
     let dryrun = cli::is_dry_run(args);
     let (bucket, prefix) = cli::get_bucket_pair(args);
@@ -38,7 +38,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
     let mut walker = ObjectWalker::new(&s3, walker_bucket, prefix);
 
     // walk across all remote objects
-    while let Some(object) = walker.next()? {
+    while let Some(object) = walker.next().await? {
         // unwrap the source key
         let key = object.key.unwrap();
 
@@ -65,16 +65,23 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
             continue;
         }
 
+        // update the target with the prefix
+        let source = if key.starts_with(&bucket) {
+            key.to_string()
+        } else {
+            format!("{}/{}", bucket, key)
+        };
+
         // create the copy request
         let copy = CopyObjectRequest {
             key: full_target.to_string(),
             bucket: bucket.to_string(),
-            copy_source: key.to_string(),
+            copy_source: source,
             ..CopyObjectRequest::default()
         };
 
         // execute the copy of the object
-        s3.copy_object(copy).sync()?;
+        s3.copy_object(copy).await?;
 
         // log out exactly what we're doing right now
         info!("Removing {} sources...", key);
@@ -87,7 +94,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
         };
 
         // execute the delete of the object
-        s3.delete_object(delete).sync()?;
+        s3.delete_object(delete).await?;
     }
 
     Ok(())

@@ -31,7 +31,7 @@ pub fn cmd<'a, 'b>() -> App<'a, 'b> {
 }
 
 /// Executes this subcommand and returns a `UtilResult` to indicate success.
-pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
+pub async fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
     // parse all global arguments
     let dryrun = cli::is_dry_run(args);
     let (bucket, prefix) = cli::get_bucket_pair(args);
@@ -59,6 +59,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
         walker,
         (&bucket, &target),
     );
+    let result = result.await;
 
     // dry doesn't post-process
     if dryrun {
@@ -74,7 +75,8 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
                 key.to_string(),
                 bucket.to_string(),
                 upload_id.to_string(),
-            );
+            )
+            .await;
         }
 
         // passthrough
@@ -95,7 +97,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
         };
 
         // carry out the request for the parts list
-        let parts_result = s3.list_parts(parts).sync();
+        let parts_result = s3.list_parts(parts).await;
 
         // attempt to list the pending parts
         if let Err(err) = parts_result {
@@ -108,7 +110,8 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
                 key.to_string(),
                 bucket.to_string(),
                 upload_id.to_string(),
-            );
+            )
+            .await;
 
             // move on
             continue;
@@ -141,7 +144,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
         };
 
         // attempt to complete each request, abort on fail (can't short circut)
-        if s3.complete_multipart_upload(complete).sync().is_err() {
+        if s3.complete_multipart_upload(complete).await.is_err() {
             // remove the upload sources
             sources.remove(&key);
 
@@ -151,7 +154,8 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
                 key.to_string(),
                 bucket.to_string(),
                 upload_id.to_string(),
-            );
+            )
+            .await;
         }
     }
 
@@ -175,7 +179,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
             };
 
             // attemp to remove the objects from S3
-            if s3.delete_object(delete).sync().is_err() {
+            if s3.delete_object(delete).await.is_err() {
                 error!("Unable to remove {}", key);
             }
         }
@@ -188,7 +192,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
 ///
 /// This will populate the provided mappings, as they're using in the main
 /// function for error handling (this allows us to use ? in this function).
-fn construct_uploads<'a>(
+async fn construct_uploads<'a>(
     dry: bool,
     s3: &S3Client,
     pattern: Regex,
@@ -201,7 +205,7 @@ fn construct_uploads<'a>(
     let (bucket, target) = mapping;
 
     // iterate all objects in the remo
-    while let Some(object) = walker.next()? {
+    while let Some(object) = walker.next().await? {
         // unwrap the source key
         let key = object.key.unwrap();
 
@@ -244,7 +248,7 @@ fn construct_uploads<'a>(
             };
 
             // init the request against AWS, and retrieve the identifier
-            let created = s3.create_multipart_upload(creation).sync()?;
+            let created = s3.create_multipart_upload(creation).await?;
             let upload = created.upload_id.expect("upload id should exist");
 
             // insert the upload identifier against the target
@@ -271,7 +275,7 @@ fn construct_uploads<'a>(
         };
 
         // carry out the request for the part copy
-        s3.upload_part_copy(copy_request).sync()?;
+        s3.upload_part_copy(copy_request).await?;
 
         // push the source for removal
         sources.insert(key);
@@ -285,7 +289,7 @@ fn construct_uploads<'a>(
 ///
 /// This can be used to abort a failed upload request, due to either the inability
 /// to construct the part request, or the inability to complete the multi request.
-fn abort_request(s3: &S3Client, key: String, bucket: String, upload_id: String) {
+async fn abort_request(s3: &S3Client, key: String, bucket: String, upload_id: String) {
     // print that it's being aborted
     error!("Aborting {}...", upload_id);
 
@@ -298,7 +302,7 @@ fn abort_request(s3: &S3Client, key: String, bucket: String, upload_id: String) 
     };
 
     // attempt to abort each request, log on fail (can't short circut)
-    if s3.abort_multipart_upload(abort).sync().is_err() {
+    if s3.abort_multipart_upload(abort).await.is_err() {
         error!("Unable to abort: {}", upload_id);
     }
 }

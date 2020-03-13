@@ -6,6 +6,8 @@
 //! when Rusoto migrates to Futures 0.3 and beyond.
 use crate::types::UtilResult;
 use rusoto_s3::*;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Pseudo `Iterator` structure to walk over `Object` types in AWS S3.
 ///
@@ -52,43 +54,45 @@ impl<'a> ObjectWalker<'a> {
     ///
     /// Calling this method does not guarantee a call will be made to AWS;
     /// there may already be buffered data to be returned immediately.
-    pub fn next(&mut self) -> UtilResult<Option<Object>> {
-        // always check the buffer first
-        if !self.buffer.is_empty() {
-            return Ok(Some(self.buffer.remove(0)));
-        }
+    pub fn next(&mut self) -> Pin<Box<dyn Future<Output = UtilResult<Option<Object>>> + '_>> {
+        Box::pin(async move {
+            // always check the buffer first
+            if !self.buffer.is_empty() {
+                return Ok(Some(self.buffer.remove(0)));
+            }
 
-        // if done, no fetch
-        if self.finished {
-            return Ok(None);
-        }
+            // if done, no fetch
+            if self.finished {
+                return Ok(None);
+            }
 
-        // create a request to list objects
-        let request = ListObjectsV2Request {
-            bucket: self.bucket.clone(),
-            prefix: self.prefix.clone(),
-            continuation_token: self.token.clone(),
-            ..ListObjectsV2Request::default()
-        };
+            // create a request to list objects
+            let request = ListObjectsV2Request {
+                bucket: self.bucket.clone(),
+                prefix: self.prefix.clone(),
+                continuation_token: self.token.clone(),
+                ..ListObjectsV2Request::default()
+            };
 
-        // execute the request and await the response (blocking)
-        let response = self.s3.list_objects_v2(request).sync()?;
+            // execute the request and await the response (blocking)
+            let response = self.s3.list_objects_v2(request).await?;
 
-        // check contents (although should always be there)
-        if response.contents.is_none() {
-            return Ok(None);
-        }
+            // check contents (although should always be there)
+            if response.contents.is_none() {
+                return Ok(None);
+            }
 
-        // store the page and next identifier
-        self.buffer = response.contents.unwrap();
-        self.token = response.next_continuation_token;
+            // store the page and next identifier
+            self.buffer = response.contents.unwrap();
+            self.token = response.next_continuation_token;
 
-        // check for last page
-        if self.token == None {
-            self.finished = true;
-        }
+            // check for last page
+            if self.token == None {
+                self.finished = true;
+            }
 
-        // pass back
-        self.next()
+            // pass back
+            self.next().await
+        })
     }
 }

@@ -21,7 +21,7 @@ pub fn cmd<'a, 'b>() -> App<'a, 'b> {
 }
 
 /// Executes this subcommand and returns a `UtilResult` to indicate success.
-pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
+pub async fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
     // parse all global arguments
     let (bucket, prefix) = cli::get_bucket_pair(args);
 
@@ -30,7 +30,7 @@ pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
     let mut walker = ObjectWalker::new(&s3, bucket, prefix);
 
     // walk and check all metrics
-    while let Some(object) = walker.next()? {
+    while let Some(object) = walker.next().await? {
         // iterate all metrics meters
         for metric in &mut chain {
             metric.register(&object);

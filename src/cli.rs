@@ -35,11 +35,11 @@ pub fn build<'a, 'b>() -> App<'a, 'b> {
 ///
 /// This will pass a singleton `S3Client` to each submodule to avoid
 /// having to construct a client inside each module.
-pub fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
+pub async fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
     match args.subcommand() {
-        ("concat", Some(subargs)) => crate::concat::exec(s3, subargs),
-        ("rename", Some(subargs)) => crate::rename::exec(s3, subargs),
-        ("report", Some(subargs)) => crate::report::exec(s3, subargs),
+        ("concat", Some(subargs)) => crate::concat::exec(s3, subargs).await,
+        ("rename", Some(subargs)) => crate::rename::exec(s3, subargs).await,
+        ("report", Some(subargs)) => crate::report::exec(s3, subargs).await,
         _ => {
             build().print_help().expect("Unable to log to TTY");
             Ok(())

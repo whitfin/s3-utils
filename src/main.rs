@@ -22,7 +22,8 @@ mod concat;
 mod rename;
 mod report;
 
-fn main() -> types::UtilResult<()> {
+#[tokio::main]
+async fn main() -> types::UtilResult<()> {
     // build the CLI and grab all argumentss
     let args = cli::build().get_matches();
 
@@ -41,5 +42,5 @@ fn main() -> types::UtilResult<()> {
     let s3 = S3Client::new_with(client, chain, region);
 
     // delegate to the cli mod
-    cli::exec(s3, &args)
+    cli::exec(s3, &args).await
 }
