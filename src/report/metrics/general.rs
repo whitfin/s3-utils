@@ -1,5 +1,4 @@
 //! General metrics tracking for S3 objects.
-use humantime;
 use rusoto_s3::Object;
 
 use std::collections::HashSet;

@@ -192,13 +192,13 @@ pub async fn exec(s3: S3Client, args: &ArgMatches<'_>) -> UtilResult<()> {
 ///
 /// This will populate the provided mappings, as they're using in the main
 /// function for error handling (this allows us to use ? in this function).
-async fn construct_uploads<'a>(
+async fn construct_uploads(
     dry: bool,
     s3: &S3Client,
     pattern: Regex,
     sources: &mut HashMap<String, HashSet<String>>,
     targets: &mut HashMap<String, String>,
-    mut walker: ObjectWalker<'a>,
+    mut walker: ObjectWalker<'_>,
     mapping: (&str, &str),
 ) -> UtilResult<()> {
     // unpack the mapping tuple
